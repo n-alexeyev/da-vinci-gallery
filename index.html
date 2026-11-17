@@ -1,0 +1,661 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Leonardo da Vinci</title>
+<meta name="description" content="Минималистичная галерея работ Леонардо да Винчи, 1472–1516.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0c0b0c;
+    --glow: #26221f;
+    --fg: #f1ece4;
+    --muted: #8a837a;
+    --faint: #4a4540;
+    --line: #3a3531;
+    --accent: #c4622d; /* сангина */
+    --pill: rgba(28, 26, 25, .78);
+    --pill-border: rgba(255, 255, 255, .07);
+    --card-shadow: 0 30px 60px -20px rgba(0, 0, 0, .7), 0 0 0 1px rgba(255, 255, 255, .05);
+    --panel: #141211;
+    --serif: "Cormorant Garamond", Georgia, serif;
+    --sans: "Inter", system-ui, -apple-system, sans-serif;
+  }
+  :root[data-theme="light"] {
+    --bg: #e9e4db;
+    --glow: #f8f5ef;
+    --fg: #1d1a17;
+    --muted: #7a7166;
+    --faint: #b4aa9d;
+    --line: #c9bfb2;
+    --accent: #b0521f;
+    --pill: rgba(250, 247, 242, .8);
+    --pill-border: rgba(0, 0, 0, .07);
+    --card-shadow: 0 30px 60px -24px rgba(60, 40, 20, .45), 0 0 0 1px rgba(0, 0, 0, .05);
+    --panel: #ddd6cb;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-snap-type: y proximity; background: var(--bg); }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--sans);
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+    transition: background .5s, color .5s;
+  }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+
+  /* ---------- scroll track ---------- */
+  #track { position: relative; pointer-events: none; }
+  .snap { position: absolute; left: 0; width: 1px; height: 1px; scroll-snap-align: start; }
+
+  /* ---------- fixed stage ---------- */
+  .stage {
+    position: fixed; inset: 0; overflow: hidden;
+    background: radial-gradient(ellipse 60% 55% at 50% 50%, var(--glow), transparent 70%);
+    transition: background .5s;
+  }
+  .thread {
+    position: absolute; left: 50%; top: 0; bottom: 0; width: 1px;
+    transform: translateX(-50%);
+    background: linear-gradient(to bottom, transparent, var(--accent) 12%, var(--accent) 50%, var(--line) 50%, var(--line) 88%, transparent);
+    opacity: 0;
+  }
+  .card {
+    position: absolute; left: 50%; top: 50%;
+    overflow: hidden;
+    box-shadow: var(--card-shadow);
+    background: #1a1816;
+    will-change: transform, width, height;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .card img {
+    width: 100%; height: 100%; object-fit: cover; display: block;
+    pointer-events: none; user-select: none;
+    transition: transform .8s cubic-bezier(.2, .7, .2, 1);
+  }
+  .card.is-active { cursor: zoom-in; }
+  .card.is-active:hover img { transform: scale(1.03); }
+  .card:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+
+  /* ---------- vitruvian outline (ink lines extracted from the drawing) ---------- */
+  .vitruvian {
+    position: absolute; left: 50%; top: 50%; pointer-events: none;
+    width: var(--vit); height: var(--vit);
+    background: var(--fg);
+    -webkit-mask: url(img/vitruvian-line.png) center / contain no-repeat;
+            mask: url(img/vitruvian-line.png) center / contain no-repeat;
+    opacity: 0;
+  }
+  .vitruvian-wrap {
+    position: absolute; inset: 0; pointer-events: none;
+    clip-path: circle(0% at 50% 50%);
+    animation: vit-reveal 2.4s .3s cubic-bezier(.6, 0, .2, 1) forwards;
+  }
+  @keyframes vit-reveal { to { clip-path: circle(75% at 50% 50%); } }
+
+  /* ---------- intro ---------- */
+  .intro {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    text-align: center; pointer-events: none; white-space: nowrap;
+    text-shadow: 0 0 18px var(--bg), 0 0 36px var(--bg);
+  }
+  .intro h1 {
+    font-family: var(--serif); font-weight: 400;
+    font-size: clamp(30px, 4.2vw, 54px); letter-spacing: -.01em; line-height: 1;
+  }
+  .intro h1 em { font-style: italic; color: var(--muted); }
+  .intro p {
+    margin-top: 14px; font-size: 11px; letter-spacing: .28em; text-transform: uppercase; color: var(--muted);
+  }
+  .hint {
+    position: absolute; left: 28px; bottom: 28px;
+    font-size: 10px; letter-spacing: .3em; text-transform: uppercase; color: var(--muted);
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+  }
+  .hint i { display: block; width: 1px; height: 34px; background: var(--line); position: relative; overflow: hidden; }
+  .hint i::after {
+    content: ""; position: absolute; left: 0; top: -40%; width: 1px; height: 40%; background: var(--fg);
+    animation: drip 2.2s cubic-bezier(.6, 0, .3, 1) infinite;
+  }
+  @keyframes drip { to { top: 100%; } }
+
+  /* ---------- header ---------- */
+  header {
+    position: fixed; top: 18px; left: 50%; transform: translateX(-50%); z-index: 50;
+    display: flex; align-items: center; gap: 4px; padding: 5px;
+    background: var(--pill); border: 1px solid var(--pill-border); border-radius: 999px;
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  }
+  .mark {
+    font-family: var(--serif); font-style: italic; font-size: 19px; line-height: 1;
+    padding: 6px 14px 7px;
+  }
+  .count { white-space: nowrap; font-size: 12px; color: var(--muted); padding: 0 12px; font-variant-numeric: tabular-nums; min-width: 66px; text-align: center; }
+  .count b { color: var(--fg); font-weight: 500; }
+  .theme {
+    width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center;
+    background: var(--pill-border); transition: background .3s;
+  }
+  .theme:hover { background: var(--line); }
+  .theme svg { width: 15px; height: 15px; }
+
+  /* ---------- captions ---------- */
+  .cap {
+    position: absolute; top: 50%; pointer-events: none; opacity: 0;
+    width: calc((100vw - var(--cw)) / 2 - 64px); max-width: 300px;
+  }
+  .cap-l { right: calc(50% + var(--cw) / 2 + 40px); }
+  .cap-r { left: calc(50% + var(--cw) / 2 + 40px); }
+  .cap-l .num { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .cap-l h2 {
+    font-family: var(--serif); font-weight: 500; font-size: clamp(22px, 2vw, 30px); line-height: 1.05;
+    margin: 6px 0 12px;
+  }
+  .cap-l p { font-size: 12.5px; line-height: 1.6; color: var(--muted); }
+  .cap-r .kind { font-family: var(--serif); font-style: italic; font-size: clamp(20px, 1.7vw, 26px); line-height: 1.1; }
+  .cap-r .meta { margin-top: 10px; font-size: 11.5px; line-height: 1.7; color: var(--muted); }
+
+  /* ---------- index ---------- */
+  .index {
+    position: fixed; right: 28px; top: 78px; z-index: 40;
+    list-style: none; text-align: right; opacity: 0;
+  }
+  .index button {
+    display: block; margin-left: auto; padding: 2px 0; font-size: 11px; color: var(--faint);
+    transition: color .3s, transform .4s cubic-bezier(.2, .7, .2, 1);
+  }
+  .index button:hover { color: var(--muted); }
+  .index button.on { color: var(--fg); transform: translateX(-6px); }
+
+  /* ---------- lightbox ---------- */
+  .lb {
+    position: fixed; inset: 0; z-index: 100;
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+    background: var(--bg);
+    opacity: 0; visibility: hidden; transition: opacity .5s, visibility 0s .5s;
+  }
+  .lb.open { opacity: 1; visibility: visible; transition: opacity .5s; }
+  .lb-art {
+    position: relative; order: 2;
+    display: grid; place-items: center; padding: 48px clamp(32px, 4vw, 72px) 48px 0;
+    opacity: 0; transform: translateX(40px);
+    transition: opacity .7s, transform .9s cubic-bezier(.2, .7, .2, 1);
+  }
+  .lb-art img {
+    max-width: 100%; max-height: calc(100vh - 96px);
+    object-fit: contain; box-shadow: 0 40px 80px -30px rgba(0, 0, 0, .75);
+    transition: opacity .35s;
+  }
+  .lb-info {
+    position: relative; overflow-y: auto; order: 1;
+    padding: clamp(48px, 9vh, 96px) clamp(28px, 4vw, 64px) 40px clamp(28px, 6vw, 96px);
+    display: flex; flex-direction: column;
+  }
+  .lb-info > * { opacity: 0; transform: translateY(16px); transition: opacity .6s, transform .8s cubic-bezier(.2, .7, .2, 1); }
+  .lb.open .lb-art, .lb.open .lb-info > * { opacity: 1; transform: none; }
+  .lb.open .lb-info > :nth-child(2) { transition-delay: .08s; }
+  .lb.open .lb-info > :nth-child(3) { transition-delay: .14s; }
+  .lb.open .lb-info > :nth-child(4) { transition-delay: .2s; }
+  .lb.open .lb-info > :nth-child(5) { transition-delay: .26s; }
+  .lb.open.swap .lb-art img, .lb.open.swap .lb-info .lb-text { opacity: 0; transition-duration: .2s; transition-delay: 0s; }
+  .lb-text { transition: opacity .35s; }
+
+  .lb-back {
+    display: inline-flex; align-items: center; gap: 14px; align-self: flex-start;
+    font-size: 11px; letter-spacing: .24em; text-transform: uppercase; color: var(--muted);
+  }
+  .lb-back i {
+    width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--line);
+    display: grid; place-items: center; font-style: normal; font-size: 14px; letter-spacing: 0;
+    transition: border-color .3s, color .3s;
+  }
+  .lb-back:hover { color: var(--fg); }
+  .lb-back:hover i { border-color: var(--fg); }
+  .lb-num { margin-top: clamp(28px, 5vh, 56px); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .lb-title {
+    font-family: var(--serif); font-weight: 500; letter-spacing: -.015em;
+    font-size: clamp(44px, 5.2vw, 88px); line-height: .98; margin: 10px 0 28px;
+    text-wrap: balance;
+  }
+  .lb-desc { max-width: 540px; font-size: 15px; line-height: 1.72; color: var(--muted); }
+  .lb-desc p + p { margin-top: 14px; }
+  .lb-desc p:first-child { color: var(--fg); font-size: 17px; line-height: 1.6; }
+  .lb-meta {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 26px 32px; max-width: 520px; margin-top: clamp(28px, 4.5vh, 44px);
+  }
+  .lb-meta dt { font-size: 10px; letter-spacing: .24em; text-transform: uppercase; color: var(--muted); margin-bottom: 7px; }
+  .lb-meta dd { font-size: 15px; line-height: 1.45; }
+  .lb-nav { margin-top: auto; padding-top: 36px; display: flex; gap: 10px; flex-wrap: wrap; }
+  .lb-nav button {
+    height: 56px; padding: 0 28px; border-radius: 999px; font-size: 14px; font-weight: 500;
+    display: inline-flex; align-items: center; gap: 12px; transition: transform .3s, opacity .3s, background .3s;
+  }
+  .lb-nav .next { background: var(--fg); color: var(--bg); max-width: 100%; min-width: 0; }
+  .lb-nav .next span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .lb-nav .prev { border: 1px solid var(--line); }
+  .lb-nav button:hover { transform: translateY(-2px); }
+  .lb-nav button:disabled { opacity: .3; pointer-events: none; }
+  .lb-close {
+    position: absolute; top: 22px; right: 22px; z-index: 2; width: 44px; height: 44px; border-radius: 50%;
+    background: var(--fg); color: var(--bg); display: grid; place-items: center;
+    transition: transform .3s;
+  }
+  .lb-close:hover { transform: rotate(90deg); }
+  .lb-close svg { width: 14px; height: 14px; }
+
+  @media (max-width: 860px) {
+    .lb { grid-template-columns: 1fr; grid-template-rows: auto; overflow-y: auto; align-content: start; }
+    .lb-art { order: 1; height: 62vh; padding: 72px 20px 0; transform: translateY(-20px); }
+    .lb-art img { max-height: calc(62vh - 72px); }
+    .lb-info { order: 2; overflow: visible; padding: 32px 20px 28px; }
+    .lb-desc p:first-child { font-size: 16px; }
+    .lb-back { display: none; }
+    .lb-num { margin-top: 0; }
+    .lb-title { font-size: 44px; margin-bottom: 18px; }
+    .lb-desc { font-size: 15px; }
+    .lb-meta { margin-top: 32px; gap: 20px 20px; }
+    .lb-nav button { flex: 1; justify-content: center; padding: 0 16px; }
+    .lb-close { position: fixed; top: 24px; right: 24px; }
+  }
+
+  @media (max-width: 1199px), (max-height: 700px) {
+    .index { display: none; }
+  }
+
+  /* ---------- mobile ---------- */
+  @media (max-width: 860px) {
+    .cap { width: auto; max-width: none; left: 20px; right: 20px; text-align: center; }
+    .cap-l { top: var(--cap-top); }
+    .cap-l h2 { margin: 4px 0 0; font-size: 26px; }
+    .cap-l p { display: none; }
+    .cap-r { top: calc(var(--cap-top) + 58px); }
+    .cap-r .kind { display: none; }
+    .cap-r .meta { margin: 0; font-size: 11px; line-height: 1.6; }
+    .cap-r .meta .medium { display: none; }
+    .hint { left: 50%; transform: translateX(-50%); bottom: 22px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hint i::after { animation: none; }
+    .vitruvian-wrap { animation: none; clip-path: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="mark">Leonardo</span>
+  <span class="count" id="count"><b>—</b></span>
+  <button class="theme" id="theme" aria-label="Сменить тему">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="8" cy="8" r="6"/><path d="M8 2a6 6 0 0 1 0 12z" fill="currentColor"/></svg>
+  </button>
+</header>
+
+<main class="stage" id="stage" aria-label="Галерея">
+  <div class="thread" id="thread"></div>
+  <div class="vitruvian-wrap" aria-hidden="true"><div class="vitruvian" id="vit"></div></div>
+
+  <div class="intro" id="intro">
+    <h1>Leonardo <em>da&nbsp;Vinci</em></h1>
+    <p>Opere · 1472 — 1516</p>
+  </div>
+
+  <div class="cap cap-l" id="capL">
+    <div class="num" id="capNum"></div>
+    <h2 id="capTitle"></h2>
+    <p id="capText"></p>
+  </div>
+  <div class="cap cap-r" id="capR">
+    <div class="kind" id="capKind"></div>
+    <div class="meta" id="capMeta"></div>
+  </div>
+
+  <div class="hint" id="hint"><span>Scroll</span><i></i></div>
+</main>
+
+<ol class="index" id="index"></ol>
+
+<div id="track"></div>
+
+<div class="lb" id="lb" role="dialog" aria-modal="true" aria-labelledby="lbTitle">
+  <figure class="lb-art"><img id="lbImg" alt=""></figure>
+  <section class="lb-info">
+    <button class="lb-back" id="lbBack"><i>←</i>Назад к работам</button>
+    <div class="lb-text">
+      <div class="lb-num" id="lbNum"></div>
+      <h2 class="lb-title" id="lbTitle"></h2>
+      <div class="lb-desc" id="lbDesc"></div>
+    </div>
+    <dl class="lb-meta lb-text" id="lbMeta"></dl>
+    <div class="lb-nav">
+      <button class="prev" id="lbPrev">← Назад</button>
+      <button class="next" id="lbNext"><span id="lbNextLabel">Следующая</span> →</button>
+    </div>
+  </section>
+  <button class="lb-close" id="lbClose" aria-label="Закрыть">
+    <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 1l12 12M13 1L1 13"/></svg>
+  </button>
+</div>
+
+<script>
+const works = [
+  { img: "annunciation", title: "Благовещение", year: "1472–1476", kind: "Ранняя работа", medium: "Масло и темпера на доске", place: "Уффици, Флоренция", pos: "60% 50%",
+    text: "Одна из первых самостоятельных картин: архангел опускается в сад, а за ним — синий туман будущих пейзажей Леонардо." },
+  { img: "ginevra", title: "Джиневра де Бенчи", year: "1474–1478", kind: "Портрет", medium: "Масло на доске", place: "Национальная галерея, Вашингтон", pos: "50% 35%",
+    text: "Можжевельник за спиной — игра слов с именем Джиневры. Единственный Леонардо в Америке." },
+  { img: "benois", title: "Мадонна Бенуа", year: "1478–1480", kind: "Мадонна", medium: "Масло на холсте", place: "Эрмитаж, Санкт-Петербург", pos: "50% 35%",
+    text: "Юная Мария смеётся, протягивая младенцу цветок, — редкая живая улыбка в сакральном сюжете." },
+  { img: "rocks", title: "Мадонна в скалах", year: "1483–1486", kind: "Алтарный образ", medium: "Масло на доске, перенесено на холст", place: "Лувр, Париж", pos: "50% 40%",
+    text: "Святые фигуры в гроте, где свет пробивается сквозь каменные своды и тонет в полутени." },
+  { img: "musician", title: "Портрет музыканта", year: "ок. 1483–1487", kind: "Портрет", medium: "Масло на доске", place: "Пинакотека Амброзиана, Милан", pos: "50% 30%",
+    text: "Единственный мужской живописный портрет мастера; в руке модели — нотный лист." },
+  { img: "ermine", title: "Дама с горностаем", year: "1489–1491", kind: "Портрет", medium: "Масло на доске", place: "Музей Чарторыйских, Краков", pos: "50% 30%",
+    text: "Чечилия Галлерани в повороте на три четверти — движение, пойманное на полпути." },
+  { img: "vitruvian", title: "Витрувианский человек", year: "ок. 1490", kind: "Рисунок", medium: "Перо и чернила на бумаге", place: "Галерея Академии, Венеция", pos: "50% 45%",
+    text: "Пропорции тела, вписанные в круг и квадрат, — геометрия человека по Витрувию." },
+  { img: "ferronniere", title: "Прекрасная Ферроньера", year: "1490–1497", kind: "Портрет", medium: "Масло на доске", place: "Лувр, Париж", pos: "50% 30%",
+    text: "Взгляд мимо зрителя и тонкая лента на лбу, давшая картине её имя." },
+  { img: "last-supper", title: "Тайная вечеря", year: "1495–1498", kind: "Фреска", medium: "Темпера и масло на штукатурке", place: "Санта-Мария-делле-Грацие, Милан", pos: "50% 50%",
+    text: "Мгновение после слов «один из вас предаст меня» — двенадцать реакций, собранных в четыре группы." },
+  { img: "salvator", title: "Спаситель мира", year: "ок. 1500", kind: "Salvator Mundi", medium: "Масло на ореховой доске", place: "Частная коллекция", pos: "50% 30%",
+    text: "Христос с хрустальной сферой в руке — самая дорогая картина, когда-либо проданная на аукционе." },
+  { img: "mona-lisa", title: "Мона Лиза", year: "1503–1519", kind: "Портрет", medium: "Масло на тополевой доске", place: "Лувр, Париж", pos: "50% 28%",
+    text: "Сфумато растворяет границу между кожей, воздухом и пейзажем. Леонардо не расставался с ней до конца жизни." },
+  { img: "st-anne", title: "Святая Анна с Мадонной", year: "ок. 1503–1519", kind: "Алтарный образ", medium: "Масло на доске", place: "Лувр, Париж", pos: "50% 30%",
+    text: "Три поколения, сплетённые в одну пирамиду, на фоне ледяных голубых гор." },
+  { img: "self-portrait", title: "Автопортрет", year: "ок. 1512", kind: "Рисунок", medium: "Сангина на бумаге", place: "Королевская библиотека, Турин", pos: "50% 40%",
+    text: "Предполагаемый автопортрет: старик с длинной бородой, нарисованный красным мелом." },
+  { img: "john", title: "Иоанн Креститель", year: "1513–1516", kind: "Поздняя работа", medium: "Масло на доске", place: "Лувр, Париж", pos: "50% 30%",
+    text: "Фигура выходит из темноты, указывая вверх, — одна из последних картин мастера." },
+];
+
+/* Longer stories for the open-painting view. First paragraph is the lead. */
+const stories = {
+  "annunciation": [
+    "Леонардо было около двадцати, он ещё работал в мастерской Андреа дель Верроккьо, но уже писал так, как не умел никто вокруг.",
+    "Крылья архангела Гавриила написаны с птичьих — мощные, тяжёлые, совсем не декоративные. Позже чья-то рука удлинила их, и следы этой правки видны до сих пор. Вдалеке — гавань и горы в голубой дымке: первая попытка той «воздушной перспективы», которая станет его визитной карточкой.",
+    "Почти четыре века картину приписывали Доменико Гирландайо. Авторство Леонардо признали только в XIX веке.",
+  ],
+  "ginevra": [
+    "Шестнадцатилетняя флорентийка Джиневра де Бенчи — первый известный портрет Леонардо и первый в Италии женский портрет в три четверти.",
+    "Колючий можжевельник за её головой — каламбур: по-итальянски он ginepro. На обороте доски — венок из лавра и пальмы вокруг ветки можжевельника и девиз «Virtus et forma decorat»: «Красота украшает добродетель».",
+    "Нижнюю часть доски когда-то отрезали — вероятно, вместе с руками модели. Местами в краске видны отпечатки пальцев самого Леонардо. В 1967 году портрет купила Национальная галерея в Вашингтоне — это единственная его картина в Америке.",
+  ],
+  "benois": [
+    "Совсем юная Мария смеётся, а младенец сосредоточенно разглядывает цветок у неё в руке — как настоящий ребёнок, а не маленький взрослый.",
+    "Цветок с четырьмя лепестками, сложенными крестом, — намёк на будущее распятие. Но всё внимание Леонардо — на живом жесте, на том, как неуклюже пухлая ручка тянется к стеблю.",
+    "Картину долго считали утраченной. В 1909 году архитектор Леонтий Бенуа показал её на выставке в Петербурге: она досталась его жене по наследству. В 1914 году семья уступила её Эрмитажу.",
+  ],
+  "rocks": [
+    "Мария, младенцы Иисус и Иоанн и ангел Уриил встречаются в сумрачном гроте — сцена, которой нет в Евангелиях.",
+    "Растения у ног фигур написаны настолько точно, что ботаники узнают их виды, а слоистые скалы — реальную геологию. Свет приходит снаружи и мягко гаснет в глубине пещеры.",
+    "Картину заказало миланское братство Непорочного зачатия, но из-за многолетнего спора об оплате появилась вторая версия. Ранняя висит в Лувре, поздняя — в Национальной галерее Лондона.",
+  ],
+  "musician": [
+    "Единственный мужской живописный портрет Леонардо — и почти единственная его картина, оставшаяся в Милане.",
+    "Лицо проработано до мельчайших бликов в глазах, а камзол и шапка остались незаконченными. Долгое время портрет считали изображением герцога Лодовико Сфорца.",
+    "При расчистке в 1905 году под поздней записью нашли руку с нотным листом — так «герцог» превратился в музыканта. Кто он, точно неизвестно: чаще всего называют капельмейстера Миланского собора Франкино Гаффурио.",
+  ],
+  "ermine": [
+    "Чечилии Галлерани около шестнадцати. Она возлюбленная миланского герцога Лодовико Сфорца — и одна из самых образованных женщин своего времени.",
+    "Горностай здесь работает сразу на нескольких уровнях: символ чистоты, эмблема Лодовико, получившего орден Горностая, и игра слов — по-гречески «галэ» созвучно с фамилией Галлерани. Зверёк повторяет поворот хозяйки, как будто оба услышали что-то справа.",
+    "Тёмный фон — поздняя перепись: изначально он был серо-голубым. Во время Второй мировой войны картину вывезли нацисты; в Краков она вернулась в 1946 году.",
+  ],
+  "vitruvian": [
+    "Самый узнаваемый рисунок в истории — и иллюстрация к строчке древнеримского архитектора Витрувия о том, что тело человека вписывается в круг и квадрат.",
+    "Центр круга — пупок, центр квадрата — пах. Многие пытались нарисовать это до Леонардо, но только он догадался сдвинуть фигуры относительно друг друга, и всё сошлось. Пояснения под рисунком написаны его знаменитым зеркальным почерком.",
+    "Лист размером примерно 34 на 24 сантиметра очень хрупок. Он хранится в темноте и показывается публике лишь изредка, на несколько недель.",
+  ],
+  "ferronniere": [
+    "Кто эта женщина, неизвестно. Чаще всего называют Лукрецию Кривелли — ещё одну возлюбленную Лодовико Сфорца.",
+    "Название — ошибка каталогизатора: картину спутали с портретом некой «Прекрасной Ферроньеры», жены торговца железом. Зато тонкую ленту с камнем на лбу с тех пор так и называют — фероньеркой.",
+    "Взгляд модели скользит мимо зрителя. А на её щеке лежит тёплый красноватый рефлекс от платья — Леонардо одним из первых стал писать отражённый свет.",
+  ],
+  "last-supper": [
+    "Мгновение сразу после слов «Один из вас предаст Меня». Двенадцать апостолов отшатываются, спорят и переспрашивают — Леонардо собрал их в четыре группы по трое.",
+    "Он не захотел писать по сырой штукатурке, как требует фреска: это заставило бы работать быстро. Вместо этого — темпера и масло по сухой стене. Результат был ослепительным, но краска начала осыпаться ещё при жизни мастера.",
+    "В 1652 году в стене прорубили дверь и уничтожили ноги Христа. В 1943-м бомба разрушила трапезную, а стену спасли мешки с песком. Последняя реставрация длилась больше двадцати лет и закончилась в 1999 году.",
+  ],
+  "salvator": [
+    "Христос благословляет правой рукой, а в левой держит прозрачную хрустальную сферу — образ мира.",
+    "Картину знали по копиям и считали утраченной. В 2005 году её, сильно записанную, купили на американском аукционе примерно за тысячу долларов. После расчистки её показали в Лондоне в 2011 году уже как работу Леонардо.",
+    "В 2017 году её продали на Christie's за 450,3 миллиона долларов — это самая дорогая картина в истории. Атрибуция до сих пор спорна, а где картина находится сейчас, официально неизвестно.",
+  ],
+  "mona-lisa": [
+    "Лиза Герардини, жена флорентийского торговца шёлком Франческо дель Джокондо, — отсюда второе название, «Джоконда».",
+    "Портрет так и не попал к заказчику: Леонардо годами возил его с собой и продолжал дописывать. Сфумато — десятки прозрачных слоёв краски — делает уголки губ и глаз неуловимыми, поэтому улыбка будто меняется, пока на неё смотришь.",
+    "Мировой славой картина во многом обязана краже: в 1911 году её вынес из Лувра итальянец Винченцо Перуджа. Нашли её только через два года во Флоренции. Сегодня она висит за пуленепробиваемым стеклом.",
+  ],
+  "st-anne": [
+    "Святая Анна, у неё на коленях дочь Мария, а та тянется к младенцу Христу, который обнимает ягнёнка — символ будущей жертвы.",
+    "Три фигуры сложены в одну плотную пирамиду, а за ними — ледяные голубые горы, как будто увиденные сквозь туман. Леонардо работал над картиной больше десяти лет и так её и не закончил.",
+    "До неё был большой картон — сейчас он в Национальной галерее Лондона, — где вместо ягнёнка изображён маленький Иоанн Креститель.",
+  ],
+  "self-portrait": [
+    "Старик с длинными волосами и бородой, нарисованный красным мелом, — именно так мы представляем себе Леонардо.",
+    "Рисунок принято считать автопортретом, сделанным около 1512 года, когда художнику было около шестидесяти. Но есть и сомнения: человек на листе выглядит заметно старше.",
+    "Бумага покрыта рыжими пятнами окисления, поэтому лист почти никогда не выставляют. Он хранится в Королевской библиотеке Турина.",
+  ],
+  "john": [
+    "Одна из последних картин Леонардо. Фигура выступает из полной темноты, улыбается и указывает пальцем вверх.",
+    "Этот жест, «указание на небо», повторяется у Леонардо много раз. Андрогинное лицо и мягкая улыбка роднят Иоанна с «Моной Лизой». Позировал, по распространённой версии, его ученик Салаи.",
+    "Леонардо увёз картину во Францию. Потом она побывала в коллекции английского короля Карла I, а затем попала к Людовику XIV и в Лувр.",
+  ],
+};
+
+const n = works.length;
+const $ = id => document.getElementById(id);
+const stage = $("stage"), track = $("track"), thread = $("thread"), intro = $("intro"), hint = $("hint");
+const vit = $("vit");
+const capL = $("capL"), capR = $("capR"), index = $("index"), count = $("count");
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const ease = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const pad = i => String(i + 1).padStart(2, "0");
+
+/* ---------- theme ---------- */
+try { const t = localStorage.getItem("ldv-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+$("theme").onclick = () => {
+  const t = document.documentElement.dataset.theme === "light" ? "dark" : "light";
+  document.documentElement.dataset.theme = t;
+  try { localStorage.setItem("ldv-theme", t); } catch (e) {}
+};
+
+/* ---------- build cards & index ---------- */
+const ringTilt = works.map((_, i) => ((i * 37) % 13 - 6) * 1.1);
+const cards = works.map((w, i) => {
+  const b = document.createElement("button");
+  b.className = "card";
+  b.setAttribute("aria-label", w.title);
+  b.innerHTML = `<img src="img/${w.img}.jpg" alt="${w.title}, ${w.year}" style="object-position:${w.pos}" decoding="async">`;
+  b.addEventListener("click", () => onCard(i));
+  stage.insertBefore(b, intro);
+  const li = document.createElement("li");
+  li.innerHTML = `<button>${w.title}</button>`;
+  li.firstChild.addEventListener("click", () => goTo(i));
+  index.appendChild(li);
+  return b;
+});
+const idxBtns = [...index.querySelectorAll("button")];
+
+/* ---------- geometry ---------- */
+let G = {};
+function measure() {
+  const vw = innerWidth, vh = innerHeight, mobile = vw < 860;
+  const cw = mobile ? Math.min(vw * .84, 520) : clamp(vw * .4, 360, 640);
+  const ch = Math.min(cw * .66, vh * .52);
+  const introLen = vh, step = vh * .8;
+  G = {
+    vw, vh, mobile, cw, ch, introLen, step,
+    sp: ch + (mobile ? 44 : 70),
+    lift: mobile ? -vh * .1 : 0,   // on phones the active card sits higher…
+    room: mobile ? 110 : 0,        // …leaving room for the caption under it
+    th: clamp(Math.min(vw, vh) * .085, 46, 76),
+    R: Math.min(vw * (mobile ? .38 : .4), vh * .39),
+  };
+  document.documentElement.style.setProperty("--cw", cw + "px");
+  // the drawn circle fills 97.7% of the PNG; fit it just inside the ring of thumbnails
+  document.documentElement.style.setProperty("--vit", Math.max(0, 2 * G.R - G.th * 1.3) / .977 + "px");
+  document.documentElement.style.setProperty("--cap-top", (vh / 2 + G.lift + ch / 2 + 18) + "px");
+  track.style.height = (introLen + (n - 1) * step + vh) + "px";
+  track.innerHTML = works.map((_, i) => `<div class="snap" style="top:${introLen + i * step}px"></div>`).join("");
+}
+measure();
+addEventListener("resize", measure);
+
+const posOf = i => G.introLen + i * G.step;
+function goTo(i) { scrollTo({ top: posOf(clamp(i, 0, n - 1)), behavior: reduced ? "auto" : "smooth" }); }
+
+let active = -1, act = 0, mix = 0;
+function onCard(i) {
+  if (mix > .9 && i === Math.round(act)) openLb(i);
+  else goTo(i);
+}
+
+/* ---------- caption ---------- */
+function setCaption(i) {
+  const w = works[i];
+  $("capNum").textContent = `${pad(i)} / ${pad(n - 1)}`;
+  $("capTitle").textContent = w.title;
+  $("capText").textContent = w.text;
+  $("capKind").textContent = w.kind;
+  $("capMeta").innerHTML = `${w.year}<br><span class="medium">${w.medium}<br></span>${w.place}`;
+  count.innerHTML = `<b>${pad(i)}</b> / ${pad(n - 1)}`;
+  idxBtns.forEach((b, k) => b.classList.toggle("on", k === i));
+  cards.forEach((c, k) => c.classList.toggle("is-active", k === i));
+}
+
+/* ---------- render loop ---------- */
+let spin = 0, last = performance.now();
+function frame(now) {
+  const dt = Math.min(now - last, 50); last = now;
+  const { mobile, cw, ch, sp, th, R, introLen, step, lift, room } = G;
+  const y = scrollY;
+  mix = clamp(y / introLen, 0, 1);
+  act = clamp((y - introLen) / step, 0, n - 1);
+  if (!reduced) spin += dt * .00005 * (1 - mix);
+
+  const ringTurn = mix * .9; // the ring unwinds as you scroll
+  const dark = document.documentElement.dataset.theme !== "light";
+  for (let i = 0; i < n; i++) {
+    const a = i / n * Math.PI * 2 - Math.PI / 2 + spin + ringTurn;
+    const rx = Math.cos(a) * R, ry = Math.sin(a) * R;
+    const d = i - act, ad = Math.abs(d);
+    const ly = d * sp + lift + room * clamp(d, 0, 1);
+    const lr = clamp(d, -1.2, 1.2) * (i % 2 ? 5 : -5);
+    const ls = 1 - Math.min(ad, 2) * .05;
+    const k = ease(clamp(mix * 1.4 - (i / n) * .4, 0, 1));
+
+    const x = lerp(rx, 0, k), yy = lerp(ry, ly, k);
+    const w = lerp(th, cw, k), h = lerp(th, ch, k);
+    const r = lerp(ringTilt[i], lr, k), s = lerp(1, ls, k);
+    const c = cards[i];
+    c.style.width = w + "px";
+    c.style.height = h + "px";
+    c.style.transform = `translate(-50%,-50%) translate3d(${x}px,${yy}px,0) rotate(${r}deg) scale(${s})`;
+    c.style.opacity = lerp(1, clamp(2.6 - ad * .55, 0, 1), k);
+    c.style.zIndex = k > .5 ? 100 - Math.round(ad * 10) : 10;
+    c.tabIndex = ad > 3 && mix > .5 ? -1 : 0;
+  }
+
+  const listVis = clamp((mix - .45) / .4, 0, 1);
+  thread.style.opacity = listVis;
+  index.style.opacity = listVis;
+  index.style.pointerEvents = listVis > .5 ? "auto" : "none";
+  vit.style.opacity = (dark ? .2 : .28) * (1 - clamp(mix * 1.8, 0, 1));
+  vit.style.transform = `translate(-50%,-50%) scale(${1 + ease(mix) * .35})`;
+  intro.style.opacity = 1 - clamp(mix * 2.2, 0, 1);
+  intro.style.transform = `translate(-50%,-50%) scale(${1 + mix * .15})`;
+  hint.style.opacity = 1 - clamp(mix * 4, 0, 1);
+
+  const ri = Math.round(act);
+  if (ri !== active) { active = ri; setCaption(ri); }
+  if (mix < .5 && count.dataset.mode !== "intro") { count.dataset.mode = "intro"; count.innerHTML = `<b>${n}</b> работ`; }
+  if (mix >= .5 && count.dataset.mode !== "list") { count.dataset.mode = "list"; setCaption(ri); }
+
+  const frac = act - ri;
+  const capVis = clamp((mix - .85) / .15, 0, 1) * clamp(1 - Math.abs(frac) * 2.4, 0, 1);
+  const off = frac * -30;
+  capL.style.opacity = capR.style.opacity = capVis;
+  capL.style.transform = `translateY(calc(${mobile ? 0 : -50}% + ${off}px))`;
+  capR.style.transform = `translateY(calc(${mobile ? 0 : -50}% + ${off * 1.4}px))`;
+
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+/* ---------- keyboard ---------- */
+addEventListener("keydown", e => {
+  if (lb.classList.contains("open")) {
+    if (e.key === "Escape") closeLb();
+    if (e.key === "ArrowRight") showLb(lbIndex + 1);
+    if (e.key === "ArrowLeft") showLb(lbIndex - 1);
+    return;
+  }
+  const cur = mix < 1 ? -1 : Math.round(act);
+  if (e.key === "ArrowDown" || e.key === "PageDown") { e.preventDefault(); goTo(cur + 1); }
+  if (e.key === "ArrowUp" || e.key === "PageUp") {
+    e.preventDefault();
+    if (cur <= 0) scrollTo({ top: 0, behavior: "smooth" }); else goTo(cur - 1);
+  }
+  if (e.key === "Enter" && mix >= 1 && document.activeElement === document.body) openLb(cur);
+});
+
+/* ---------- lightbox ---------- */
+const lb = $("lb");
+let lastFocus = null, lbIndex = 0, swapTimer = 0;
+function fillLb(i) {
+  const w = works[i];
+  lbIndex = i;
+  $("lbImg").src = `img/${w.img}.jpg`;
+  $("lbImg").alt = `${w.title}, ${w.year}`;
+  $("lbNum").textContent = `${pad(i)} / ${pad(n - 1)}`;
+  $("lbTitle").textContent = w.title;
+  $("lbDesc").innerHTML = (stories[w.img] || [w.text]).map(p => `<p>${p}</p>`).join("");
+  $("lb").querySelector(".lb-info").scrollTop = 0;
+  $("lbMeta").innerHTML = [["Год", w.year], ["Жанр", w.kind], ["Техника", w.medium], ["Где хранится", w.place]]
+    .map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("");
+  $("lbPrev").disabled = i === 0;
+  $("lbNext").disabled = i === n - 1;
+  $("lbNextLabel").textContent = i < n - 1 ? works[i + 1].title : "Конец";
+}
+function showLb(i) {
+  i = clamp(i, 0, n - 1);
+  if (i === lbIndex) return;
+  // keep the gallery behind in sync, so closing lands on the same work
+  scrollTo({ top: posOf(i), behavior: "auto" });
+  lb.classList.add("swap");
+  clearTimeout(swapTimer);
+  swapTimer = setTimeout(() => {
+    fillLb(i);
+    const img = $("lbImg");
+    const done = () => lb.classList.remove("swap");
+    img.complete ? done() : (img.onload = img.onerror = done);
+  }, 200);
+}
+function openLb(i) {
+  fillLb(i);
+  lastFocus = document.activeElement;
+  lb.classList.add("open");
+  document.documentElement.style.overflow = "hidden";
+  lb.scrollTop = 0;
+  $("lbClose").focus({ preventScroll: true });
+}
+function closeLb() {
+  lb.classList.remove("open");
+  document.documentElement.style.overflow = "";
+  if (lastFocus) lastFocus.focus({ preventScroll: true });
+}
+$("lbClose").onclick = $("lbBack").onclick = closeLb;
+$("lbPrev").onclick = () => showLb(lbIndex - 1);
+$("lbNext").onclick = () => showLb(lbIndex + 1);
+</script>
+</body>
+</html>
