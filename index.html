@@ -17,8 +17,6 @@
     --faint: #4a4540;
     --line: #3a3531;
     --accent: #c4622d; /* сангина */
-    --pill: rgba(28, 26, 25, .78);
-    --pill-border: rgba(255, 255, 255, .07);
     --card-shadow: 0 30px 60px -20px rgba(0, 0, 0, .7), 0 0 0 1px rgba(255, 255, 255, .05);
     --panel: #141211;
     --serif: "Cormorant Garamond", Georgia, serif;
@@ -32,8 +30,6 @@
     --faint: #b4aa9d;
     --line: #c9bfb2;
     --accent: #b0521f;
-    --pill: rgba(250, 247, 242, .8);
-    --pill-border: rgba(0, 0, 0, .07);
     --card-shadow: 0 30px 60px -24px rgba(60, 40, 20, .45), 0 0 0 1px rgba(0, 0, 0, .05);
     --panel: #ddd6cb;
   }
@@ -125,26 +121,6 @@
   }
   @keyframes drip { to { top: 100%; } }
 
-  /* ---------- header ---------- */
-  header {
-    position: fixed; top: 18px; left: 50%; transform: translateX(-50%); z-index: 50;
-    display: flex; align-items: center; gap: 4px; padding: 5px;
-    background: var(--pill); border: 1px solid var(--pill-border); border-radius: 999px;
-    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
-  }
-  .mark {
-    font-family: var(--serif); font-style: italic; font-size: 19px; line-height: 1;
-    padding: 6px 14px 7px;
-  }
-  .count { white-space: nowrap; font-size: 12px; color: var(--muted); padding: 0 12px; font-variant-numeric: tabular-nums; min-width: 66px; text-align: center; }
-  .count b { color: var(--fg); font-weight: 500; }
-  .theme {
-    width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center;
-    background: var(--pill-border); transition: background .3s;
-  }
-  .theme:hover { background: var(--line); }
-  .theme svg { width: 15px; height: 15px; }
-
   /* ---------- captions ---------- */
   .cap {
     position: absolute; top: 50%; pointer-events: none; opacity: 0;
@@ -163,7 +139,7 @@
 
   /* ---------- index ---------- */
   .index {
-    position: fixed; right: 28px; top: 78px; z-index: 40;
+    position: fixed; right: 28px; top: 28px; z-index: 40;
     list-style: none; text-align: right; opacity: 0;
   }
   .index button {
@@ -288,14 +264,6 @@
 </style>
 </head>
 <body>
-
-<header>
-  <span class="mark">Leonardo</span>
-  <span class="count" id="count"><b>—</b></span>
-  <button class="theme" id="theme" aria-label="Сменить тему">
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="8" cy="8" r="6"/><path d="M8 2a6 6 0 0 1 0 12z" fill="currentColor"/></svg>
-  </button>
-</header>
 
 <main class="stage" id="stage" aria-label="Галерея">
   <div class="thread" id="thread"></div>
@@ -453,20 +421,12 @@ const n = works.length;
 const $ = id => document.getElementById(id);
 const stage = $("stage"), track = $("track"), thread = $("thread"), intro = $("intro"), hint = $("hint");
 const vit = $("vit");
-const capL = $("capL"), capR = $("capR"), index = $("index"), count = $("count");
+const capL = $("capL"), capR = $("capR"), index = $("index");
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const lerp = (a, b, t) => a + (b - a) * t;
 const ease = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const pad = i => String(i + 1).padStart(2, "0");
-
-/* ---------- theme ---------- */
-try { const t = localStorage.getItem("ldv-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
-$("theme").onclick = () => {
-  const t = document.documentElement.dataset.theme === "light" ? "dark" : "light";
-  document.documentElement.dataset.theme = t;
-  try { localStorage.setItem("ldv-theme", t); } catch (e) {}
-};
 
 /* ---------- build cards & index ---------- */
 const ringTilt = works.map((_, i) => ((i * 37) % 13 - 6) * 1.1);
@@ -488,7 +448,7 @@ const idxBtns = [...index.querySelectorAll("button")];
 /* ---------- geometry ---------- */
 let G = {};
 function measure() {
-  const vw = innerWidth, vh = innerHeight, mobile = vw < 860;
+  const vw = Math.max(innerWidth, 1), vh = Math.max(innerHeight, 1), mobile = vw < 860;
   const cw = mobile ? Math.min(vw * .84, 520) : clamp(vw * .4, 360, 640);
   const ch = Math.min(cw * .66, vh * .52);
   const introLen = vh, step = vh * .8;
@@ -527,7 +487,6 @@ function setCaption(i) {
   $("capText").textContent = w.text;
   $("capKind").textContent = w.kind;
   $("capMeta").innerHTML = `${w.year}<br><span class="medium">${w.medium}<br></span>${w.place}`;
-  count.innerHTML = `<b>${pad(i)}</b> / ${pad(n - 1)}`;
   idxBtns.forEach((b, k) => b.classList.toggle("on", k === i));
   cards.forEach((c, k) => c.classList.toggle("is-active", k === i));
 }
@@ -577,8 +536,6 @@ function frame(now) {
 
   const ri = Math.round(act);
   if (ri !== active) { active = ri; setCaption(ri); }
-  if (mix < .5 && count.dataset.mode !== "intro") { count.dataset.mode = "intro"; count.innerHTML = `<b>${n}</b> работ`; }
-  if (mix >= .5 && count.dataset.mode !== "list") { count.dataset.mode = "list"; setCaption(ri); }
 
   const frac = act - ri;
   const capVis = clamp((mix - .85) / .15, 0, 1) * clamp(1 - Math.abs(frac) * 2.4, 0, 1);
